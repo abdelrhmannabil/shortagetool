@@ -417,6 +417,35 @@ def apply_search_filter(df: pd.DataFrame, search_text: str) -> pd.DataFrame:
     return df[search_mask]
 
 
+def apply_saved_shortage_search_filter(
+    shortage_items: list[dict], search_text: str
+) -> list[dict]:
+    """Filter saved shortage items using the same search terms as the main table."""
+    search_terms = [term.lower() for term in search_text.split() if term.strip()]
+    if not search_terms:
+        return shortage_items
+
+    filtered_items = []
+    searchable_fields = (
+        "product_name",
+        "category",
+        "sale_price",
+        "cost",
+        "current_stock",
+        "monthly_sold_amount",
+        "rate",
+    )
+
+    for item in shortage_items:
+        searchable_text = " ".join(
+            str(item.get(field, "")) for field in searchable_fields
+        ).lower()
+        if all(term in searchable_text for term in search_terms):
+            filtered_items.append(item)
+
+    return filtered_items
+
+
 def main() -> None:
     st.set_page_config(page_title="Pharmacy Shortage Tool", layout="wide")
     st.title("Pharmacy Shortage Tool")
@@ -601,7 +630,7 @@ def main() -> None:
         "Shortage",
     ]
 
-    table_tab, shortages_tab = st.tabs(["Editable Table", "shortages"])
+    table_tab, shortages_tab = st.tabs(["Editable Table", "Shortages"])
 
     with table_tab:
         editable_df = filtered_df[visible_columns + ["Row ID"]].set_index("Row ID")
@@ -658,10 +687,16 @@ def main() -> None:
 
     with shortages_tab:
         latest_shortage_items = load_frequent_shortages()
-        if latest_shortage_items:
-            shortages_view_df = pd.DataFrame(latest_shortage_items)
+        filtered_shortage_items = apply_saved_shortage_search_filter(
+            latest_shortage_items,
+            search_text,
+        )
+        if filtered_shortage_items:
+            shortages_view_df = pd.DataFrame(filtered_shortage_items)
             st.dataframe(shortages_view_df, use_container_width=True, hide_index=True)
             st.caption(f"Saved to: {FREQUENT_SHORTAGE_FILE}")
+        elif latest_shortage_items:
+            st.info("No saved shortage items match the current search.")
         else:
             st.info("No frequent shortage items saved yet.")
 
@@ -697,7 +732,8 @@ def main() -> None:
 
     st.caption(
         f"Filtered rows: {len(filtered_df)} | Ordered: {len(ordered_df)} | "
-        f"Not Found: {len(not_found_df)} | Shortage: {len(shortage_df)}"
+        f"Not Found: {len(not_found_df)} | Shortage: {len(shortage_df)} | "
+        f"Saved shortages shown: {len(filtered_shortage_items)}"
     )
 
 
