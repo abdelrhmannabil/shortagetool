@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+env/
+
+.streamlit/secrets.toml
+.whatsapp_chrome_profile/
+
+*.log
+~$*.xlsx
